@@ -1,0 +1,45 @@
+defaults:
+  - default
+
+datasets_train_val:
+  _target_: src.data.datasets.NoisyF0Dataset
+
+  f0_dataset:
+    _target_: src.data.datasets.F0AudioDataset
+    path: ${paths.data_dir}/vocadito
+    dir_wav: audio_16000
+    dir_csv: annotation_stems_10ms
+    sample_rate: ${...fs}
+    hop_size: ${...hop_size}
+    sequence_n_frames: null  # full length
+    subset: null
+    seed: ${seed}
+
+  noise_dataset:
+    _target_: src.data.datasets.NoiseDataset
+    path: ${paths.data_dir}/NOISEX92
+    audio_dir: audio_16000
+    sample_rate: ${...fs}
+    seed: ${seed}
+
+
+datasets_test:
+  _target_: src.data.datasets.NoisyF0Dataset
+
+  f0_dataset:
+    _target_: src.data.datasets.F0AudioDataset
+    path: ${paths.data_dir}/vocadito
+    dir_wav: audio_16000
+    dir_csv: annotation_stems_10ms
+    sample_rate: ${...fs}
+    hop_size: ${...hop_size}
+    sequence_n_frames: null  # full length
+    subset: null
+    seed: ${seed}
+
+  noise_dataset:
+    _target_: src.data.datasets.NoiseDataset
+    path: ${paths.data_dir}/NOISEX92
+    audio_dir: audio_16000
+    sample_rate: ${...fs}
+    seed: ${seed}

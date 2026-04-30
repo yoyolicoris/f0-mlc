@@ -1,0 +1,44 @@
+_target_: src.models.f0_module.F0LitModule
+
+f0_estimator:
+  _target_: ???
+  fs: ${data.fs}
+  f0_min: 32.7
+  f0_max: 3520.0
+  f0_r_cent: 10
+  hop_size: ${data.hop_size}
+
+f0_selector:
+  _target_: df0.f0_selection.F0Selector
+  _partial_: true
+  selection_strategy: argmax
+  weighted_average_delta: null
+
+snr_range: [0, 40]
+
+unvoiced_mode: joint
+
+cent_tolerance: 50
+target_blurring: null
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.0001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: max
+  factor: 0.5
+  patience: 50
+
+scheduler_config:
+  monitor: "val/acc_best/OA"
+  interval: epoch
+  frequency: 1
+  strict: false # to only raise warning if monitored quantity unavailable
+
+# compile model for faster training with pytorch 2.0
+compile: false

@@ -1,0 +1,24 @@
+defaults:
+  - default
+
+datasets_train_val:
+  _target_: src.data.datasets.MIR1K
+  path: ${paths.data_dir}/MIR-1K
+  dir_wav: Wavfile
+  dir_csv: PitchLabel_csv
+  sample_rate: ${..fs}
+  hop_size: ${..hop_size}
+  sequence_n_frames: ${..sequence_n_frames}
+  subset: mir1k_train_val
+  seed: ${seed}
+
+datasets_test:
+  _target_: src.data.datasets.MIR1K
+  path: ${paths.data_dir}/MIR-1K
+  dir_wav: Wavfile
+  dir_csv: PitchLabel_csv
+  sample_rate: ${..fs}
+  hop_size: ${..hop_size}
+  sequence_n_frames: null  # full length
+  subset: mir1k_test
+  seed: ${seed}

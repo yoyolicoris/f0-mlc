@@ -1,0 +1,26 @@
+# @package _global_
+
+defaults:
+  - data: mir1k # choose datamodule with `test_dataloader()` for evaluation
+  - model: default
+  - logger: csv
+  - trainer: default
+  - paths: default
+  - extras: default
+  - hydra: default
+  - _self_
+
+data:
+  batch_size: 1  # different lengths
+
+model:
+  snr_range: null  # test with clean audio by default
+
+task_name: "eval"
+
+tags: ["dev"]
+
+# passing checkpoint path is necessary for evaluation
+ckpt_path: null
+
+seed: 1

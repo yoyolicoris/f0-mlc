@@ -1,0 +1,17 @@
+defaults:
+  - default
+
+f0_estimator:
+  _target_: src.models.components.vqt_wrapper.VQTModule
+
+  log_comp_gamma: 10.0
+  filter_scale: 1
+  norm: true
+  basis_norm: 1
+  gamma: 5
+  window: hann
+  pad_mode: reflect
+  earlydownsample: true
+  trainable: false
+  output_format: Magnitude
+  verbose: false

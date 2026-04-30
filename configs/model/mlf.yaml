@@ -1,0 +1,5 @@
+defaults:
+  - default
+
+f0_estimator:
+  _target_: src.models.components.mlf.MLF

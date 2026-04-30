@@ -1,0 +1,6 @@
+defaults:
+  - default
+
+f0_estimator:
+  _target_: df0.dyin.dYIN
+  frame_size: 1600
