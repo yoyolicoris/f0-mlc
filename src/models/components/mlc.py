@@ -35,8 +35,8 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         self.hipass_f = f0_min
         self.lowpass_t = 1 / f0_max * 1000
 
-        self.hpi = int(self.hipass_f * frame_size / self.fs) + 1
-        self.lpi = int(self.lowpass_t * self.fs / 1000) + 1
+        self.hpi = int(self.hipass_f * frame_size / self.fs)
+        self.lpi = int(self.lowpass_t * self.fs / 1000)
 
         self.f0_classes_hz = get_log_frequencies(
             f_min=f0_min, f_max=f0_max, cent_step=f0_r_cent, return_as="hz"
@@ -65,7 +65,7 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             sigmoid_inv(torch.tensor(gammas, dtype=torch.float32))
         )
 
-        n_input_features = 2
+        n_input_features = 3
         self.n_freq = self.f0_classes_hz.numel()
 
         self.input_instance_norm = torch.nn.InstanceNorm2d(
@@ -118,37 +118,33 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         for i, gamma in enumerate(gammas[1:]):
             y = torch.fft.fft(y, dim=-1, norm="ortho").real
             if i % 2 == 0:
-                y[..., : self.lpi] = 0
+                y[..., : self.lpi + 1] = 0
                 y[..., -self.lpi :] = 0
                 y = y.relu() ** gamma
                 ceps = y
             else:
-                y[..., : self.hpi] = 0
+                y[..., : self.hpi + 1] = 0
                 y[..., -self.hpi :] = 0
                 y = y.relu() ** gamma
                 spec = y
 
-        # x_cep = torch.swapaxes(ceps, -1, -2)
+        # x_ceps = torch.swapaxes(ceps, -1, -2)
         # x_spec = torch.swapaxes(spec, -1, -2)
-        x_cep = ceps
+        x_ceps = ceps
         x_spec = spec
 
         # parabolic interpolation
-        x_cep_padded = torch.cat([x_cep, x_cep[..., [-1]]], dim=-1)
+        # x_ceps = torch.cat([x_ceps, x_ceps[..., [-1]]], dim=-1)
 
-        a = (
-            0.5 * x_cep_padded[..., :-2]
-            - x_cep_padded[..., 1:-1]
-            + 0.5 * x_cep_padded[..., 2:]
-        )
-        b = -0.5 * x_cep_padded[..., :-2] + 0.5 * x_cep_padded[..., 2:]
-        c = x_cep_padded
+        a = 0.5 * x_ceps[..., :-2] - x_ceps[..., 1:-1] + 0.5 * x_ceps[..., 2:]
+        b = -0.5 * x_ceps[..., :-2] + 0.5 * x_ceps[..., 2:]
+        c = x_ceps
 
         ceps_logits = (
             a[..., self.quefrencies_rounded] * self.quefrencies_difference**2
             + b[..., self.quefrencies_rounded] * self.quefrencies_difference
             + c[..., self.quefrencies_rounded]
-        )
+        ).relu()
 
         a = 0.5 * x_spec[..., :-2] - x_spec[..., 1:-1] + 0.5 * x_spec[..., 2:]
         b = -0.5 * x_spec[..., :-2] + 0.5 * x_spec[..., 2:]
@@ -158,10 +154,10 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             a[..., self.linfrequencies_rounded] * self.linfrequencies_difference**2
             + b[..., self.linfrequencies_rounded] * self.linfrequencies_difference
             + c[..., self.linfrequencies_rounded]
-        )
+        ).relu()
 
         x_features = torch.stack(
-            [ceps_logits, spec_logits], dim=1
+            [ceps_logits, spec_logits, ceps_logits * spec_logits], dim=1
         )  # (batch_size, num_reps, num_frames, num_f0_classes)
 
         x_features_norm = self.input_instance_norm(x_features)
@@ -174,8 +170,8 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         logits_f0 = self.conv(
             x_features_norm.transpose(2, 1).flatten(0, 1)
         )  # (batch_size*num_frames, 1, num_f0_classes)
-        logits_f0 = logits_f0.unflatten(0, (bs, t)).permute(0, 2, 1, 3)
-        logits_f0 = logits_f0.squeeze(dim=1)
+        logits_f0 = logits_f0.unflatten(0, (bs, t)).squeeze(2)
+        # logits_f0 = logits_f0.squeeze(dim=1)
 
         # X = torch.fft.rfft(x_features_norm, n=int(2 * self.n_freq - 1), dim=-1)
         # W = torch.fft.rfft(self.conv.weight.transpose(0, 1), dim=-1)
