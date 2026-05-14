@@ -1,0 +1,49 @@
+[workspace]
+authors = ["Chin-Yun Yu <chin-yun.yu@qmul.ac.uk>"]
+channels = ["conda-forge", "nvidia"]
+name = "f0-mlc"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+
+[dependencies]
+python = "3.10.*"
+pytorch-gpu = ">=2.10.0,<3"
+torchaudio = ">=2.10.0,<3"
+lightning = ">=2.6.1,<3"
+torchmetrics = ">=1.9.0,<2"
+hydra-core = ">=1.3.2,<2"
+rich = ">=15.0.0,<16"
+pre-commit = ">=4.6.0,<5"
+pytest = ">=9.0.3,<10"
+wandb = ">=0.26.1,<0.27"
+numpy = ">=2.2.6,<3"
+scipy = ">=1.15.2,<2"
+matplotlib = ">=3.10.9,<4"
+jupyterlab = ">=4.5.7,<5"
+pandas = ">=2.3.3,<3"
+scikit-learn = ">=1.7.2,<2"
+tqdm = ">=4.67.3,<5"
+ffmpeg = ">=8.1.1,<9"
+torchinfo = ">=1.8.0,<2"
+setuptools = "81.0.0.*"
+
+[pypi-dependencies]
+hydra-optuna-sweeper = ">=1.2.0, <2"
+hydra-colorlog = ">=1.2.0, <2"
+rootutils = ">=1.0.7, <2"
+mir-eval = ">=0.8.2, <0.9"
+soundfile = ">=0.13.1, <0.14"
+nnaudio = ">=0.3.4, <0.4"
+tensorboard = ">=2.20.0, <3"
+autoroot = ">=1.0.1, <2"
+autorootcwd = ">=1.0.1, <2"
+librosa = ">=0.11.0, <0.12"
+onnxruntime = ">=1.23.2, <2"
+einops = ">=0.8.2, <0.9"
+df0-pitch = ">=1.0.1, <2"
+
+[system-requirements]
+cuda = "13.0"
