@@ -119,7 +119,9 @@ class MLF(torch.nn.Module):
 
         n_input_features = len(self.input_reps)
 
-        self.input_instance_norm = torch.nn.InstanceNorm2d(n_input_features, affine=True)
+        self.input_instance_norm = torch.nn.InstanceNorm2d(
+            n_input_features, affine=True
+        )
 
         # conv only (toeplitz-like)
         self.conv = torch.nn.Conv1d(
@@ -134,6 +136,7 @@ class MLF(torch.nn.Module):
             out_features=1,
         )
 
+    @torch.compile(fullgraph=False)
     def forward(self, x):
         """Extract F0 predictions by fusing multiple representations.
 
@@ -152,7 +155,9 @@ class MLF(torch.nn.Module):
         # ----- Feature extraction and normalization -----
 
         # Stack logits from all input representations
-        x_features = [feat(x)["logits"][:, :n_frames, :] for feat in self.input_reps.values()]
+        x_features = [
+            feat(x)["logits"][:, :n_frames, :] for feat in self.input_reps.values()
+        ]
         x_features = torch.stack(
             x_features, dim=1
         )  # (batch_size, num_reps, num_frames, num_f0_classes)
@@ -176,7 +181,8 @@ class MLF(torch.nn.Module):
         x_features_max = x_features_norm.max(dim=-1).values
         x_features_probs = F.softmax(x_features_norm, dim=-1)
         x_features_ent = -(
-            x_features_probs * torch.log(x_features_probs + torch.finfo(torch.float32).tiny)
+            x_features_probs
+            * torch.log(x_features_probs + torch.finfo(torch.float32).tiny)
         ).sum(dim=-1)
         x_features_var = torch.var(x_features_norm, dim=-1)
 
