@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch_fftconv.modules import FFTConv1d
+from scipy.signal.windows import blackmanharris
 
 from df0.f0_utils import get_log_frequencies
 
@@ -21,8 +22,6 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         f0_min,
         f0_max,
         f0_r_cent,
-        hipass_f,
-        lowpass_t,
         gammas=(0.2, 0.9, 0.8),
     ):
         super().__init__()
@@ -33,8 +32,8 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         self.f0_min = f0_min
         self.f0_max = f0_max
         self.f0_r_cent = f0_r_cent
-        self.hipass_f = hipass_f
-        self.lowpass_t = lowpass_t
+        self.hipass_f = f0_min
+        self.lowpass_t = 1 / f0_max * 1000
 
         self.hpi = int(self.hipass_f * frame_size / self.fs) + 1
         self.lpi = int(self.lowpass_t * self.fs / 1000) + 1
@@ -56,7 +55,11 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         self.register_buffer(
             "linfrequencies_difference", linfrequencies - self.linfrequencies_rounded
         )
-        self.register_buffer("blackman_window", torch.blackman_window(self.frame_size))
+        self.register_buffer(
+            "blackman_window",
+            torch.from_numpy(blackmanharris(self.frame_size)).float(),
+            #  torch.blackman_window(self.frame_size)
+        )
         sigmoid_inv = lambda x: torch.log(x / (1 - x))
         self.gamma_logits = torch.nn.Parameter(
             sigmoid_inv(torch.tensor(gammas, dtype=torch.float32))
@@ -178,8 +181,7 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         # W = torch.fft.rfft(self.conv.weight.transpose(0, 1), dim=-1)
         # Y = X.conj() * W
         # logits_f0 = (
-        #     torch.fft.irfft(Y, n=int(2 * self.n_freq - 1), dim=-1)[..., : self.n_freq]
-        #     .sum(dim=1)
+        #     torch.fft.irfft(Y.sum(dim=1), n=int(2 * self.n_freq - 1), dim=-1)[..., : self.n_freq]
         #     .flip(-1)
         # )
         # print(logits_f0.shape)
