@@ -11,6 +11,13 @@ from torchmetrics.collections import MetricCollection
 from src.utils.evaluate import compute_metrics
 from src.data.components.utils import mix_at_snr
 
+torch.set_float32_matmul_precision("medium")
+torch.backends.fp32_precision = "tf32"
+# torch.backends.cuda.matmul.fp32_precision = "tf32"
+torch.backends.cudnn.fp32_precision = "tf32"
+torch.backends.cudnn.conv.fp32_precision = "tf32"
+torch.backends.cudnn.rnn.fp32_precision = "tf32"
+
 
 class F0LitModule(LightningModule):
     """Lightning module for F0 estimation training and evaluation.
@@ -52,10 +59,14 @@ class F0LitModule(LightningModule):
         self.f0_min = self.f0_estimator.f0_classes_hz[0]
         self.n_freq = self.f0_estimator.f0_classes_hz.numel()
 
-        f0_classes_cent = hz_to_cents(f_hz=self.f0_estimator.f0_classes_hz, f_ref=self.f0_min)
+        f0_classes_cent = hz_to_cents(
+            f_hz=self.f0_estimator.f0_classes_hz, f_ref=self.f0_min
+        )
         self.f0_r_cent = int(f0_classes_cent[1])
 
-        self.f0_selector = f0_selector(f_min=self.f0_min, f0_classes_cent=f0_classes_cent)
+        self.f0_selector = f0_selector(
+            f_min=self.f0_min, f0_classes_cent=f0_classes_cent
+        )
 
         # metric objects for calculating and averaging accuracy across batches
         self.train_acc = MetricCollection(
@@ -247,7 +258,9 @@ class F0LitModule(LightningModule):
     def on_train_epoch_start(self) -> None:
         self.log("optimizer/lr", self.lr_schedulers().get_last_lr()[0])
 
-    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
+    def validation_step(
+        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+    ) -> None:
         """Perform a single validation step on a batch of data from the validation set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -280,9 +293,16 @@ class F0LitModule(LightningModule):
         self.val_acc_best(acc)  # update best so far val acc
         # log `val_acc_best` as a value through `.compute()` method, instead of as a metric object
         # otherwise metric would be reset by lightning after each epoch
-        self.log("val/acc_best/OA", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
+        self.log(
+            "val/acc_best/OA",
+            self.val_acc_best.compute(),
+            sync_dist=True,
+            prog_bar=True,
+        )
 
-    def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
+    def test_step(
+        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+    ) -> None:
         """Perform a single test step on a batch of data from the test set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -307,7 +327,9 @@ class F0LitModule(LightningModule):
                 prog_bar=True,
             )
 
-        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(
+            "test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True
+        )
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Choose what optimizers and learning-rate schedulers to use in your optimization.
@@ -324,6 +346,9 @@ class F0LitModule(LightningModule):
             scheduler = self.hparams.scheduler(optimizer=optimizer)
             return {
                 "optimizer": optimizer,
-                "lr_scheduler": {"scheduler": scheduler, **self.hparams.scheduler_config},
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    **self.hparams.scheduler_config,
+                },
             }
         return {"optimizer": optimizer}
