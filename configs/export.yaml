@@ -1,0 +1,19 @@
+# @package _global_
+
+defaults:
+  - data: mir1k # choose datamodule with `test_dataloader()` for evaluation
+  - model: default
+  - paths: default
+  - extras: default
+  - hydra: default
+  - _self_
+
+model:
+  snr_range: null # test with clean audio by default
+
+task_name: "export"
+
+tags: ["dev"]
+
+# passing checkpoint path is necessary for evaluation
+ckpt_path: null
