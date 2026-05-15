@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import nnAudio.features
 from torch_fftconv.modules import FFTConv1d
 from scipy.signal.windows import blackmanharris
 
@@ -65,7 +66,20 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             sigmoid_inv(torch.tensor(gammas, dtype=torch.float32))
         )
 
-        n_input_features = 3
+        self.vqt = nnAudio.features.VQT(
+            sr=fs,
+            hop_length=hop_size,
+            fmin=f0_min,
+            fmax=f0_max,
+            n_bins=self.f0_classes_hz.numel(),
+            bins_per_octave=int(1200 / f0_r_cent),
+            gamma=5,
+        )
+
+        num_ceps = len(gammas) // 2
+        num_spec = len(gammas) - num_ceps + 1
+
+        n_input_features = num_ceps + num_spec + num_ceps * num_spec
         self.n_freq = self.f0_classes_hz.numel()
 
         self.input_instance_norm = torch.nn.InstanceNorm2d(
@@ -85,7 +99,7 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             out_features=1,
         )
 
-    @torch.compile(fullgraph=True)
+    @torch.compile(fullgraph=True, dynamic=True)
     def forward(self, x):
         """Extract F0 class probabilities from audio.
 
@@ -113,25 +127,26 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             .mT
             ** gammas[0]
         )
-        ceps = None
+        ceps = []
         y = spec
+        spec = [spec]
         for i, gamma in enumerate(gammas[1:]):
             y = torch.fft.fft(y, dim=-1, norm="ortho").real
             if i % 2 == 0:
                 y[..., : self.lpi + 1] = 0
                 y[..., -self.lpi :] = 0
                 y = y.relu() ** gamma
-                ceps = y
+                ceps.append(y)
             else:
                 y[..., : self.hpi + 1] = 0
                 y[..., -self.hpi :] = 0
                 y = y.relu() ** gamma
-                spec = y
+                spec.append(y)
 
         # x_ceps = torch.swapaxes(ceps, -1, -2)
         # x_spec = torch.swapaxes(spec, -1, -2)
-        x_ceps = ceps
-        x_spec = spec
+        x_ceps = torch.stack(ceps, dim=1)
+        x_spec = torch.stack(spec, dim=1)
 
         # parabolic interpolation
         # x_ceps = torch.cat([x_ceps, x_ceps[..., [-1]]], dim=-1)
@@ -156,8 +171,17 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             + c[..., self.linfrequencies_rounded]
         ).relu()
 
-        x_features = torch.stack(
-            [ceps_logits, spec_logits, ceps_logits * spec_logits], dim=1
+        vqt_spec = self.vqt(x).mT.mul(10).log1p().unsqueeze(1)
+
+        x_features = torch.cat(
+            [
+                ceps_logits,
+                spec_logits,
+                vqt_spec,
+                (ceps_logits.unsqueeze(2) * spec_logits.unsqueeze(1)).flatten(1, 2),
+                vqt_spec * ceps_logits,
+            ],
+            dim=1,
         )  # (batch_size, num_reps, num_frames, num_f0_classes)
 
         x_features_norm = self.input_instance_norm(x_features)
@@ -167,19 +191,19 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         # Convolve over F0 frequency dimension (Toeplitz-like structure)
         # logits_f0: (batch_size, num_frames, num_f0_classes)
         bs, c, t, f = x_features_norm.shape
-        logits_f0 = self.conv(
-            x_features_norm.transpose(2, 1).flatten(0, 1)
-        )  # (batch_size*num_frames, 1, num_f0_classes)
-        logits_f0 = logits_f0.unflatten(0, (bs, t)).squeeze(2)
+        # logits_f0 = self.conv(
+        #     x_features_norm.transpose(2, 1).flatten(0, 1)
+        # )  # (batch_size*num_frames, 1, num_f0_classes)
+        # logits_f0 = logits_f0.unflatten(0, (bs, t)).squeeze(2)
         # logits_f0 = logits_f0.squeeze(dim=1)
 
-        # X = torch.fft.rfft(x_features_norm, n=int(2 * self.n_freq - 1), dim=-1)
-        # W = torch.fft.rfft(self.conv.weight.transpose(0, 1), dim=-1)
+        X = torch.fft.rfft(x_features_norm, n=int(2 * self.n_freq - 1), dim=-1)
+        W = torch.fft.rfft(self.conv.weight.transpose(0, 1), dim=-1)
         # Y = X.conj() * W
-        # logits_f0 = (
-        #     torch.fft.irfft(Y.sum(dim=1), n=int(2 * self.n_freq - 1), dim=-1)[..., : self.n_freq]
-        #     .flip(-1)
-        # )
+        Y = torch.linalg.vecdot(X, W, dim=1)
+        logits_f0 = torch.fft.irfft(Y, n=int(2 * self.n_freq - 1), dim=-1)[
+            ..., : self.n_freq
+        ].flip(-1)
         # print(logits_f0.shape)
 
         # ----- Voicing logit computation -----
@@ -187,11 +211,10 @@ class MultiLayerCepstrumModule(torch.nn.Module):
         # Voicing features: max, entropy, and variance across F0 classes
         # x_features_max/ent/var: (batch_size, num_reps, num_frames)
         x_features_max = x_features_norm.max(dim=-1).values
-        x_features_probs = F.softmax(x_features_norm, dim=-1)
-        x_features_ent = -(
-            x_features_probs
-            * torch.log(x_features_probs + torch.finfo(torch.float32).tiny)
-        ).sum(dim=-1)
+        x_features_log_probs = F.log_softmax(x_features_norm, dim=-1)
+        x_features_ent = -(x_features_log_probs.exp() * x_features_log_probs).sum(
+            dim=-1
+        )
         x_features_var = torch.var(x_features_norm, dim=-1)
 
         # x_features_unv: (batch_size, num_frames, 3*num_reps)

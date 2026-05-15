@@ -136,7 +136,7 @@ class MLF(torch.nn.Module):
             out_features=1,
         )
 
-    @torch.compile(fullgraph=False)
+    # @torch.compile(fullgraph=False)
     def forward(self, x):
         """Extract F0 predictions by fusing multiple representations.
 
@@ -168,22 +168,26 @@ class MLF(torch.nn.Module):
 
         # Convolve over F0 frequency dimension (Toeplitz-like structure)
         # logits_f0: (batch_size, num_frames, num_f0_classes)
-        bs, c, t, f = x_features_norm.shape
-        logits_f0 = self.conv(x_features_norm.permute(0, 2, 1, 3).reshape(bs * t, c, f))
-        logits_f0 = logits_f0.view(bs, t, 1, f).permute(0, 2, 1, 3)
-
-        logits_f0 = logits_f0.squeeze(dim=1)
+        # bs, c, t, f = x_features_norm.shape
+        # logits_f0 = self.conv(x_features_norm.permute(0, 2, 1, 3).reshape(bs * t, c, f))
+        # logits_f0 = logits_f0.view(bs, t, 1, f).permute(0, 2, 1, 3)
+        # logits_f0 = logits_f0.squeeze(dim=1)
+        X = torch.fft.rfft(x_features_norm, n=int(2 * self.n_freq - 1), dim=-1)
+        W = torch.fft.rfft(self.conv.weight.transpose(0, 1), dim=-1)
+        Y = torch.linalg.vecdot(X, W, dim=1)
+        logits_f0 = torch.fft.irfft(Y, n=int(2 * self.n_freq - 1), dim=-1)[
+            ..., : self.n_freq
+        ].flip(-1)
 
         # ----- Voicing logit computation -----
 
         # Voicing features: max, entropy, and variance across F0 classes
         # x_features_max/ent/var: (batch_size, num_reps, num_frames)
         x_features_max = x_features_norm.max(dim=-1).values
-        x_features_probs = F.softmax(x_features_norm, dim=-1)
-        x_features_ent = -(
-            x_features_probs
-            * torch.log(x_features_probs + torch.finfo(torch.float32).tiny)
-        ).sum(dim=-1)
+        x_features_log_probs = F.log_softmax(x_features_norm, dim=-1)
+        x_features_ent = -(x_features_log_probs.exp() * x_features_log_probs).sum(
+            dim=-1
+        )
         x_features_var = torch.var(x_features_norm, dim=-1)
 
         # x_features_unv: (batch_size, num_frames, 3*num_reps)
