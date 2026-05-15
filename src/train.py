@@ -70,6 +70,8 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     trainer: Trainer = hydra.utils.instantiate(
         cfg.trainer, callbacks=callbacks, logger=logger
     )
+    model.f0_estimator.compile(fullgraph=True, dynamic=True, disable=not cfg.compile)
+    # model = torch.compile(model, fullgraph=True, dynamic=True, disable=not cfg.compile)
 
     object_dict = {
         "cfg": cfg,

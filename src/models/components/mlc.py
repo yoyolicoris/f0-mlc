@@ -1,10 +1,13 @@
 import torch
 import torch.nn.functional as F
-import nnAudio.features
+
+# import nnAudio.features
 from torch_fftconv.modules import FFTConv1d
 from scipy.signal.windows import blackmanharris
 
 from df0.f0_utils import get_log_frequencies
+
+from .vqt import VQT
 
 
 class MultiLayerCepstrumModule(torch.nn.Module):
@@ -66,14 +69,15 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             sigmoid_inv(torch.tensor(gammas, dtype=torch.float32))
         )
 
-        self.vqt = nnAudio.features.VQT(
+        self.vqt = VQT(
             sr=fs,
             hop_length=hop_size,
             fmin=f0_min,
-            fmax=f0_max,
+            # fmax=f0_max,
             n_bins=self.f0_classes_hz.numel(),
             bins_per_octave=int(1200 / f0_r_cent),
             gamma=5,
+            num_zeros=64,
         )
 
         num_ceps = len(gammas) // 2
@@ -99,7 +103,7 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             out_features=1,
         )
 
-    @torch.compile(fullgraph=True, dynamic=True)
+    # @torch.compile(fullgraph=True, dynamic=True)
     def forward(self, x):
         """Extract F0 class probabilities from audio.
 
@@ -238,6 +242,7 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             "logits_unv": logits_unv,  # (batch_size, num_frames, 1)
             "logits_all": logits_all,  # (batch_size, num_frames, 1 + num_f0_classes)
             "probs_all": probs_all,  # (batch_size, num_frames, 1 + num_f0_classes)
+            "f0_classes_hz": self.f0_classes_hz,  # (num_f0_classes,)
         }
 
         return out

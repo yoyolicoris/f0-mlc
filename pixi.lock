@@ -511,6 +511,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/f0/0f/310fb31e39e2d734ccaa2c0fb981ee41f7bd5056ce9bc29b2248bd569169/humanfriendly-10.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/40/50/a08b0453c18088da369991d015ef3902a9ab532b515a41f1bfbe1394854d/hydra_colorlog-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/25/1eccad47c39da342988fe501b174652c37676ab539baeae9a73444932d13/hydra_optuna_sweeper-1.2.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/00/b7/6924c4a40bc74f643dc74d274344b737adceb574bcd6ec46819ce4567f80/kazane-1.0.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/a1/8d812e53a5da1687abb10445275d41a8b13adb781bbf7196ddbcf8d88505/lazy_loader-0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/ba/c63c5786dfee4c3417094c4b00966e61e4a63efecee22cb7b4c0387dda83/librosa-0.11.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7c/fb/76d88fc05ee1f9c1a6efe39eb493c4a727e5d1690412469017cd23bcb776/llvmlite-0.47.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
@@ -2941,6 +2942,12 @@ packages:
   purls: []
   size: 21629420
   timestamp: 1770623109480
+- pypi: https://files.pythonhosted.org/packages/00/b7/6924c4a40bc74f643dc74d274344b737adceb574bcd6ec46819ce4567f80/kazane-1.0.4-py3-none-any.whl
+  name: kazane
+  version: 1.0.4
+  sha256: efef842e95fee87255574891970344662708e9d9f3a9720d1c06e376ecc9bce5
+  requires_dist:
+  - torch
 - conda: https://conda.anaconda.org/conda-forge/noarch/kernel-headers_linux-64-4.18.0-he073ed8_9.conda
   sha256: 41557eeadf641de6aeae49486cef30d02a6912d8da98585d687894afd65b356a
   md5: 86d9cba083cd041bfbf242a01a7a1999
