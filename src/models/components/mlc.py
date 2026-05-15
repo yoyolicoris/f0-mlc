@@ -77,7 +77,7 @@ class MultiLayerCepstrumModule(torch.nn.Module):
             n_bins=self.f0_classes_hz.numel(),
             bins_per_octave=int(1200 / f0_r_cent),
             gamma=5,
-            num_zeros=64,
+            num_zeros=128,
         )
 
         num_ceps = len(gammas) // 2
