@@ -47,7 +47,11 @@ def main(cfg: DictConfig) -> None:
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
 
-    args = (torch.rand(8, 64000),)
+    state_dict = torch.load(cfg.ckpt_path, map_location="cpu", weights_only=False)
+    model.load_state_dict(state_dict["state_dict"])
+    model.eval()
+
+    args = (torch.rand(3, 16000 * 11),)
     m = torch.export.export(
         model.f0_estimator,
         args,
