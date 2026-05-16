@@ -105,6 +105,21 @@ class VQT(torch.nn.Module):
                 torch.view_as_real(basis).permute(2, 0, 1).flatten(0, 1).unsqueeze(1),
             )
 
+            if pad_mode == "constant":
+                self.add_module(
+                    f"padding_{i}",
+                    nn.ConstantPad1d((basis.shape[-1] // 2, basis.shape[-1] // 2), 0),
+                )
+            elif pad_mode == "reflect":
+                self.add_module(
+                    f"padding_{i}",
+                    nn.ReflectionPad1d((basis.shape[-1] // 2, basis.shape[-1] // 2)),
+                )
+            else:
+                raise ValueError(
+                    f"Pad mode {pad_mode} is not supported. Please choose either 'constant' or 'reflect'."
+                )
+
         self.downsampler = Decimate(q=2, num_zeros=num_zeros)
 
     def forward(self, x, output_format=None, normalization_type="librosa"):
@@ -137,14 +152,15 @@ class VQT(torch.nn.Module):
                 x_down = x
 
             cqt_kernels = getattr(self, f"cqt_kernels_{i}")
-            pad_length = int(cqt_kernels.shape[-1] // 2)
+            # pad_length = int(cqt_kernels.shape[-1] // 2)
             # if self.pad_mode == "constant":
             #     my_padding = nn.ConstantPad1d((pad_length, pad_length), 0)
             # elif self.pad_mode == "reflect":
             #     my_padding = nn.ReflectionPad1d((pad_length, pad_length))
-            x_down_padded = nn.functional.pad(
-                x_down, (pad_length, pad_length), mode=self.pad_mode
-            )
+            # x_down_padded = nn.functional.pad(
+            #     x_down, (pad_length, pad_length), mode=self.pad_mode
+            # )
+            x_down_padded = getattr(self, f"padding_{i}")(x_down)
 
             # cur_vqt = get_cqt_complex(
             #     x_down,
