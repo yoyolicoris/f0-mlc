@@ -8,5 +8,5 @@ hop_size: 320
 sequence_n_frames: 200
 
 batch_size: 16
-num_workers: 16
-pin_memory: False
+num_workers: 4
+pin_memory: True

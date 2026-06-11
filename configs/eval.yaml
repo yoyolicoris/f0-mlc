@@ -11,10 +11,10 @@ defaults:
   - _self_
 
 data:
-  batch_size: 1  # different lengths
+  batch_size: 1 # different lengths
 
 model:
-  snr_range: null  # test with clean audio by default
+  snr_range: null # test with clean audio by default
 
 task_name: "eval"
 

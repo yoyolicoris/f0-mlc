@@ -5,7 +5,7 @@ f0_estimator:
   fs: ${data.fs}
   f0_min: 32.7
   f0_max: 3520.0
-  f0_r_cent: 10
+  f0_r_cent: 20
   hop_size: ${data.hop_size}
 
 f0_selector:
@@ -32,7 +32,7 @@ scheduler:
   _partial_: true
   mode: max
   factor: 0.5
-  patience: 50
+  patience: 100
 
 scheduler_config:
   monitor: "val/acc_best/OA"
